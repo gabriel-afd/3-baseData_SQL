@@ -1,5 +1,5 @@
 
-# Projeto IntuitiveCare - Importação de Dados
+# Projeto IntuitiveCare - Importação de Dados no MySQL
 
 Este repositório contém instruções para importar arquivos CSV da ANS para um banco de dados MySQL ou PostgreSQL usando comandos nativos de cada sistema.
 
@@ -10,89 +10,94 @@ Este repositório contém instruções para importar arquivos CSV da ANS para um
 
 ---
 
-# Como habilitar o uso de `LOAD DATA LOCAL INFILE` no MySQL
+# Como importar um arquivo CSV para o MySQL usando LOAD DATA LOCAL INFILE
 
-Para importar os arquivos CSV para a tabela `demonstrativos_contabeis` com o comando:
+Este guia mostra como importar um arquivo `.csv` para uma tabela MySQL usando o comando `LOAD DATA LOCAL INFILE` diretamente pelo terminal.
+
+---
+
+## Requisitos
+- MySQL instalado (ex: MySQL Server 8.0)
+- Caminho para o `mysql.exe` conhecido
+- Acesso ao terminal (CMD, PowerShell ou terminal Linux)
+- Arquivo CSV com delimitador `;` e campos entre aspas `""
+
+---
+
+## ⚠️ Importante
+**Ao informar o caminho do arquivo CSV, use `barra normal (/)` ao invés de `barra invertida (\)`**. 
+
+Errado:
+```
+C:\Users\usuario\Downloads\arquivo.csv
+```
+
+Certo:
+```
+C:/Users/usuario/Downloads/arquivo.csv
+```
+
+---
+
+##  Passos para importar o CSV:
+
+### 1. Abrir o terminal e conectar-se ao MySQL com suporte a arquivos locais:
+
+```bash
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p --local-infile=1
+```
+
+> Obs: Substitua o caminho se o MySQL estiver instalado em outro diretório.
+
+### 2. Selecionar o banco de dados desejado:
 
 ```sql
-LOAD DATA LOCAL INFILE 'F:/IntuitiveCare-MySQL/2024/4T2024.csv'
-INTO TABLE demonstrativos_contabeis
-CHARACTER SET utf8mb4
+USE db_intuitive_care;
+```
+
+### 3. Executar o comando de importação para a tabela `operadoras`:
+
+```sql
+LOAD DATA LOCAL INFILE 'C:/Users/gmede/Downloads/Relatorio_cadop.csv'
+INTO TABLE operadoras
+CHARACTER SET utf8
 FIELDS TERMINATED BY ';'
 ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 ```
 
-Siga as instruções abaixo para garantir que sua instância MySQL permita o uso do `LOCAL INFILE`:
-
----
-
-### 1. Ativar `local_infile` no servidor
-
-No terminal MySQL ou no Workbench:
-```sql
-SET GLOBAL local_infile = 1;
-```
-
----
-
-### 2. Permitir que o cliente utilize `LOCAL`
-
-Se estiver usando o Workbench, certifique-se de que a conexão foi criada com a opção `Allow LOAD DATA LOCAL INFILE` habilitada.
-
-Se estiver usando CLI, adicione o parâmetro na conexão:
-```bash
-mysql -u root -p --local-infile
-```
-
----
-
-### 3. Verificar ou desativar `secure_file_priv` (se necessário)
-
-Execute:
-```sql
-SHOW VARIABLES LIKE 'secure_file_priv';
-```
-
-Se o valor **não for vazio**, o MySQL só permitirá carregar arquivos a partir da pasta exibida. Copie o CSV para essa pasta **ou** edite o arquivo `my.ini` e comente a linha:
-```ini
-# secure-file-priv = "algum/caminho"
-```
-Depois, reinicie o serviço MySQL.
-
----
-
-Pronto! Agora você pode importar seus dados com `LOAD DATA LOCAL INFILE` normalmente.
-
----
-
-# Como importar dados CSV no PostgreSQL
-
-O PostgreSQL não possui `LOAD DATA`, mas você pode usar o comando `COPY` ou `\COPY`.
-
-### Usando `COPY` (no servidor PostgreSQL)
+### 4. Executar o comando de importação para a tabela `demonstrativos_contabeis` com tratamento de colunas:
 
 ```sql
-COPY demonstrativos_contabeis(data, reg_ans, cd_conta_contabil, descricao, vl_saldo_inicial, vl_saldo_final)
-FROM 'F:/IntuitiveCare-PostgreSQL/2024/4T2024.csv'
-DELIMITER ';'
-CSV HEADER;
+LOAD DATA LOCAL INFILE 'F:/IntuitiveCare-MySQL/2024/4T2024.csv' INTO TABLE demonstrativos_contabeis 
+CHARACTER SET utf8
+FIELDS TERMINATED BY ';'
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS
+(@data, @reg_ans, @cd_conta, @descricao, @saldo_ini, @saldo_fin)
+SET
+  data = STR_TO_DATE(@data, '%Y-%m-%d'),
+  reg_ans = NULLIF(@reg_ans, ''),
+  cd_conta_contabil = NULLIF(@cd_conta, ''),
+  descricao = NULLIF(@descricao, ''),
+  vl_saldo_inicial = NULLIF(@saldo_ini, ''),
+  vl_saldo_final = NULLIF(@saldo_fin, '');
 ```
-
-> Obs: O arquivo deve estar acessível pelo servidor PostgreSQL e com permissão de leitura.
-
-### Usando `\COPY` (no terminal psql)
-
-```bash
-\COPY demonstrativos_contabeis(data, reg_ans, cd_conta_contabil, descricao, vl_saldo_inicial, vl_saldo_final)
-FROM 'F:/IntuitiveCare-PostgreSQL/2024/4T2024.csv'
-DELIMITER ';'
-CSV HEADER;
-```
-
-> Obs: O `\COPY` funciona a partir da máquina cliente, ideal para arquivos locais.
 
 ---
 
-Pronto! Agora você também consegue importar arquivos CSV no PostgreSQL.
+## Resultado
+O(s) arquivo(s) CSV serão importados para as tabelas indicadas, com tratamento de cabeçalho e formatação de dados quando necessário.
+
+Se tiver problemas com permissões ou erros de conexão, verifique se:
+- O MySQL está com `local_infile=1` habilitado no servidor (`SET GLOBAL local_infile = 1;`)
+- O caminho do arquivo está correto
+- O CSV está salvo com codificação UTF-8 (sem BOM)
+
+---
+
+
+
+
